@@ -1,0 +1,4 @@
+#!/bin/bash
+temp_f=$(vcgencmd measure_temp | cut -d "=" -f 2)
+date_f=$(date "+%F %R:%S")
+echo "$date_f $temp_f" >> /var/lib/riak/temp.log
