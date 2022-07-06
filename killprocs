@@ -1,0 +1,10 @@
+#!/bin/bash
+echo "Killing all Riak processes:"
+for i in $(ps aux | grep [r]iak | awk '{print $11","$12","$13","$14","$15}')
+do
+echo "Killing $i..."
+done
+for i in $(ps aux | grep [r]iak | awk '{print $2}')
+do
+kill $i
+done
