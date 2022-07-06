@@ -1,0 +1,9 @@
+#!/bin/bash
+riak stop
+for i in $(ls /var/lib/riak)
+  do
+    echo "Killing $i"
+    rm -rf /var/lib/riak/$i/*
+  done
+touch /var/lib/riak/vm.args
+chown riak:riak /var/lib/riak/vm.args
