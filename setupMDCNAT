@@ -1,0 +1,21 @@
+#!/bin/bash
+## Check Clustername
+clustername=$(riak repl clustername | grep $1)
+if [[ $clustername ]]; then
+  echo "Cluster name already set as $clustername, skipping..."
+else
+  echo "Setting clustername as $1..."
+  riak repl clustername $1
+fi
+##Check NAT
+ip=$(ifconfig | grep 192.168 | cut -d " " -f 10)
+nat=$(riak repl nat-map show | grep $ip)
+if [[ $nat ]]; then
+  echo "Nat already set up for $ip, skipping..."
+else
+  port=$(echo $ip | sed "s/192.168.0.1/908/g")
+  echo "Setting up MDC NAT-mapping from 192.168.100.5:$port to $ip"
+  riak repl nat-map add 192.168.100.5:$port $ip
+fi
+echo "Completed for this node!"
+echo "Don't forget to run on all other nodes in the cluster and set up bucket types BEFORE connecting the source!"
