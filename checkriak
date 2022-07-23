@@ -1,0 +1,18 @@
+#!/bin/bash
+echo "Checking Riak Status via riak ping..."
+status=$(/usr/sbin/riak ping)
+if [ "$status" != "pong" ]; then
+	echo "Riak is down!"
+	disk=$(/usr/bin/ls /dev | /usr/bin/grep "sda1")
+	if [[ $disk ]]; then
+		echo "but the disk is still working."
+		echo "Restarting Riak..."
+		/usr/sbin/riak start
+	else
+		echo "and the disk is down."
+		echo "Rebooting"
+		/usr/sbin/reboot
+	fi
+else
+	echo "Riak is up"
+fi
