@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Moving /var/log/riak to /var/lib/riak/log to keep on external drive"
-mkdir /var/lib/riak/log
+mkdir -p /var/lib/riak/log
 chown riak:riak /var/lib/riak/log
 rm -rf /var/log/riak
 ln -s /var/lib/riak/log /var/log/riak
