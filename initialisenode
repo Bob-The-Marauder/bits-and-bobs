@@ -1,0 +1,104 @@
+#!/bin/bash
+#Check it's the right IP and have an exit ready
+clear
+for (( i=5; i>0; i-- )); do
+  echo "Remote node supplied is $1"
+  echo "If this is not correct, press Ctrl+C ASAP!"
+  echo "Beginning in: $i"
+  sleep 1
+  clear
+done
+
+echo "------------------------"
+echo "| Beginning Networking |"
+echo "------------------------"
+echo ""
+
+echo "Clearing any old known_hosts references on this node..."
+#If the reset node exists in known hosts, remove it
+ssh-keygen -f "/root/.ssh/known_hosts" -R "$1"
+
+echo "About send keys for passwordless login."
+echo "Please enter the password for the user pi on $1 when prompted."
+#Copy keys for passwordless login
+ssh-copy-id -i ~/.ssh/id_rsa pi@$1
+
+echo "Creating remote .ssh folder if not pre-existing..."
+#Create a remote .ssh folder if not pre-existing
+ssh pi@$1 "sudo mkdir -p /root/.ssh"
+
+echo "Sending cluster keys..."
+#Send the same keys as part of the cluster
+scp -r ~/.ssh/* pi@$1:
+
+echo "Moving keys to correct location..."
+#Move the keys to where they should live
+ssh pi@$1 "sudo mv id_rsa /root/.ssh"
+ssh pi@$1 "sudo mv id_rsa.pub /root/.ssh"
+
+echo "Setting permissions on the keys..."
+#Set the right permissions on the keys
+ssh pi@$1 "sudo chmod 600 /root/.ssh/id_rsa"
+ssh pi@$1 "sudo chmod 644 /root/.ssh/id_rsa.pub"
+
+echo ""
+echo "------------------------"
+echo "| Networking Complete! |"
+echo "------------------------"
+echo ""
+echo "-------------------------"
+echo "| Beginning System Prep |"
+echo "-------------------------"
+echo ""
+
+echo "Adjust riak.conf to IP of node"
+#Use sed wildcard matching to match the last digit of the IP
+sed -i "s/192\.168\.0\.1./$1/g" /home/pi/riak.conf
+
+echo "Copying remaining common files to node"
+#Move the remaining base files to the reset node
+scp -r /home/pi/* pi@$1:
+
+echo "Telling remote node to check for updates and apply them..."
+#Tell the remote node to check for updates and apply them
+ssh pi@$1 "sudo apt-get update"
+echo "Note, this process may require approval, please press 'y' then enter when prompted"
+ssh pi@$1 "sudo apt-get upgrade"
+
+echo "Installing Riak..."
+#Tell the remote node to install the Riak v3 package copied across
+ssh pi@$1 "sudo dpkg -i riak_3*"
+
+echo "Moving customised config files"
+#Move the config files sent over to the right places
+ssh pi@$1 "sudo mv riak.conf /etc/riak/"
+ssh pi@$1 "sudo mv advanced.config /etc/riak/"
+
+echo "Setting ownership of config files"
+#Make Riak own everything in the /etc/riak folder
+ssh pi@$1 "sudo chown -R riak:riak /etc/riak/"
+
+echo "Tune the node to run Riak with greater efficiency"
+#Run tuneriak remotely
+ssh pi@$1 "sudo ./tuneriak"
+
+echo "Move the logs from the SD card to the HDD"
+#Run logswitch remotely
+ssh pi@$1 "sudo ./logswitch"
+
+echo "Telling Riak to start on boot"
+#Enable Riak via systemctl
+ssh pi@$1 "sudo systemctl enable riak"
+
+echo ""
+echo "-------------------------"
+echo "| System Prep Complete! |"
+echo "-------------------------"
+echo ""
+echo "All that remains is to execute 'crontab -e' on the remote node and add the following two lines:"
+echo "* * * * * /home/pi/logtemp"
+echo "*/3 * * * * /home/pi/checkriak"
+echo ""
+echo "Rebooting remote node to allow changes to take effect"
+#This reboot will fix any/all changes that require a reboot then start Riak
+ssh pi@$1 "sudo reboot"
