@@ -1,0 +1,41 @@
+#!/bin/bash
+# Check whether we already have a copy
+zipfile=$(ls | grep "node_exporter-")
+if [[ $zipfile ]] ; then
+   echo "Package already present. Skipping download"
+else
+   echo "No local package found. Downloading..."
+   # Get latest package
+   curl -sSLO https://github.com/prometheus/node_exporter/releases/download/v1.3.1/node_exporter-1.3.1.linux-armv7.tar.gz
+fi
+
+# Unzip package
+tar xfvz node_exporter-1.3.1.linux-armv7.tar.gz
+
+# Change directory name
+mv node_exporter-1.3.1.linux-armv7 node_exporter
+
+# Add for systemctl usage
+echo "[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=pi
+ExecStart=/home/pi/node_exporter/node_exporter
+
+[Install]
+WantedBy=default.target" > /etc/systemd/system/node_exporter.service
+
+# Reload systemctl
+systemctl daemon-reload
+
+# Start node_exporter
+systemctl start node_exporter
+
+# Check it's actually runnning
+systemctl status node_exporter 
+
+# Set to start at boot
+systemctl enable node_exporter
