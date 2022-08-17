@@ -1,12 +1,14 @@
 #!/bin/bash
+# Write script output to /var/log/syslog
+exec 1> >(exec logger -t $(basename $0)) 2>&1
 echo "Checking Riak Status via riak ping..."
 status=$(/usr/sbin/riak ping)
 if [ "$status" != "pong" ]; then
 	echo "Riak is down!"
-	hashtree=$(tail /var/log/riak/console.log | /usr/bin/grep "/var/lib/riak/cluster_meta/trees/LOCK")
+	hashtree=$(/usr/bin/tail /var/log/riak/console.log | /usr/bin/grep "/var/lib/riak/cluster_meta/trees/LOCK")
 	if [[ $hashtree ]]; then
 		echo "and we have a leftover hashtree lock."
-		echo "removing lock..."
+		echo "Removing lock..."
 		rm -rf /var/lib/riak/cluster_meta/trees/LOCK
 		echo "Restarting Riak..."
 		/usr/bin/taskset -a -c 0-2 /usr/sbin/riak start
