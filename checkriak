@@ -3,15 +3,24 @@ echo "Checking Riak Status via riak ping..."
 status=$(/usr/sbin/riak ping)
 if [ "$status" != "pong" ]; then
 	echo "Riak is down!"
-	disk=$(/usr/bin/ls /dev | /usr/bin/grep "sda1")
-	if [[ $disk ]]; then
-		echo "but the disk is still working."
+	hashtree=$(tail /var/log/riak/console.log | /usr/bin/grep "/var/lib/riak/cluster_meta/trees/LOCK")
+	if [[ $hashtree ]]; then
+		echo "and we have a leftover hashtree lock."
+		echo "removing lock..."
+		rm -rf /var/lib/riak/cluster_meta/trees/LOCK
 		echo "Restarting Riak..."
-		/usr/sbin/riak start
+		/usr/bin/taskset -a -c 0-2 /usr/sbin/riak start
 	else
-		echo "and the disk is down."
-		echo "Rebooting"
-		/usr/sbin/reboot
+		disk=$(/usr/bin/ls /dev | /usr/bin/grep "sda1")
+		if [[ $disk ]]; then
+			echo "but the disk is still working."
+			echo "Restarting Riak..."
+			/usr/bin/taskset -a -c 0-2 /usr/sbin/riak start
+		else
+			echo "and the disk is down."
+			echo "Rebooting"
+			/usr/sbin/reboot
+		fi
 	fi
 else
 	echo "Riak is up"
