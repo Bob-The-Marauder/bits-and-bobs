@@ -1,0 +1,28 @@
+#!/bin/bash
+checktype=$(riak admin bucket-type list | grep test)
+if [[ $checktype ]]
+then
+  echo "Test bucket type already present, using..."
+else
+  echo "Test bucket type not found, creating and activating..."
+  riak admin bucket-type create test '{"props":{"allow_mult":"false"}}'
+  riak admin bucket-type activate test
+fi
+
+echo 'Writing "123" to "http://localhost:8098/types/test/buckets/systemtest/keys/basic"'
+curl -XPUT -H "Content-Type: text/plain" -d "123" http://localhost:8098/types/test/buckets/systemtest/keys/basic
+echo 'Reading "http://localhost:8098/types/test/buckets/systemtest/keys/basic"'
+curl http://localhost:8098/types/test/buckets/systemtest/keys/basic
+echo ""
+
+echo 'Updating "http://localhost:8098/types/test/buckets/systemtest/keys/basic" to "456"'
+curl -XPUT -H "Content-Type: text/plain" -d "456" http://localhost:8098/types/test/buckets/systemtest/keys/basic
+echo 'Reading "http://localhost:8098/types/test/buckets/systemtest/keys/basic"'
+curl http://localhost:8098/types/test/buckets/systemtest/keys/basic
+echo ""
+
+echo 'Deleting "http://localhost:8098/types/test/buckets/systemtest/keys/basic"'
+curl -XDELETE http://localhost:8098/types/test/buckets/systemtest/keys/basic
+echo 'Reading "http://localhost:8098/types/test/buckets/systemtest/keys/basic"'
+curl http://localhost:8098/types/test/buckets/systemtest/keys/basic
+echo ""
