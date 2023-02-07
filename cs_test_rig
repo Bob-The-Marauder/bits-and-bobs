@@ -1,0 +1,88 @@
+#!/bin/bash
+                cs_version=$(riak-cs version)
+                sed -i '$d' /etc/riak/advanced.config
+echo ',
+                {riak_kv, [
+                {add_paths, ["/usr/lib64/riak-cs/lib/riak_cs-cs_version/ebin"]},
+                {storage_backend, riak_cs_kv_multi_backend},
+                {multi_backend_prefix_list, [{<<"0b:">>, be_blocks}]},
+                {multi_backend_default, be_default},
+                {multi_backend, [
+                    {be_default, riak_kv_leveled_backend, [
+                        {data_root, "/var/lib/riak/leveled"}
+                    ]},
+                    {be_blocks, riak_kv_bitcask_backend, [
+                        {data_root, "/var/lib/riak/bitcask"}
+                    ]}
+                ]}
+    ]}
+].' >> /etc/riak/advanced.config
+                sed -i "s/cs_version/$cs_version/g" /etc/riak/advanced.config
+                sed -i "s/storage_backend = bitcask/## storage_backend = bitcask/g" /etc/riak/riak.conf
+                echo "buckets.default.allow_mult = true" >> /etc/riak/riak.conf
+                riak start
+                riak-admin wait-for-service riak_kv riak@127.0.0.1
+                sed -i "s/anonymous_user_creation = off/anonymous_user_creation = on/g" /etc/riak-cs/riak-cs.conf
+                riak-cs start
+                sleep 5
+                stanchion start
+                sleep 5
+                cd ~/
+                curl -XPOST http://127.0.0.1:8080/riak-cs/user   -H 'Content-Type: application/json'   -d '{"email":"admin@admin.com", "name":"admin"}' > ~/secret.txt
+                key=$(cat ~/secret.txt | cut -d '"' -f 16)
+                secret=$(cat ~/secret.txt | cut -d '"' -f 20)
+                sed -i "s/admin.key = admin-key/admin.key = $key/g" /etc/riak-cs/riak-cs.conf
+                sed -i "s/admin.key = admin-key/admin.key = $key/g" /etc/stanchion/stanchion.conf
+                echo "admin.secret = $secret" >> /etc/riak-cs/riak-cs.conf
+                echo "admin.secret = $secret" >> /etc/stanchion/stanchion.conf
+                sed -i "s/anonymous_user_creation = on/anonymous_user_creation = off/g" /etc/riak-cs/riak-cs.conf
+                stanchion restart
+                riak-cs restart
+
+echo '
+                        access_key = admin.key
+                        bucket_location = US
+                        cloudfront_host = cloudfront.amazonaws.com
+                        cloudfront_resource = /2010-07-15/distribution
+                        default_mime_type = binary/octet-stream
+                        delete_removed = False
+                        dry_run = False
+                        encoding = UTF-8
+                        encrypt = False
+                        follow_symlinks = False
+                        force = False
+                        get_continue = False
+                        gpg_command = /usr/bin/gpg
+                        gpg_decrypt = %(gpg_command)s -d --verbose --no-use-agent --batch --yes --passphrase-fd %(passphrase_fd)s -o %(output_file)s %(input_file)s
+                        gpg_encrypt = %(gpg_command)s -c --verbose --no-use-agent --batch --yes --passphrase-fd %(passphrase_fd)s -o %(output_file)s %(input_file)s
+                        gpg_passphrase =
+                        guess_mime_type = True
+                        host_base = s3.amazonaws.com
+                        host_bucket = %(bucket)s.s3.amazonaws.com
+                        human_readable_sizes = False
+                        list_md5 = False
+                        log_target_prefix =
+                        preserve_attrs = True
+                        progress_meter = True
+                        proxy_host = 127.0.0.1
+                        proxy_port = 8080
+                        recursive = False
+                        recv_chunk = 4096
+                        reduced_redundancy = False
+                        secret_key = admin.secret
+                        send_chunk = 4096
+                        simpledb_host = sdb.amazonaws.com
+                        skip_existing = False
+                        socket_timeout = 10
+                        urlencoding_mode = normal
+                        use_https = False
+                        verbosity = WARNING
+                        v2_signature = True' >> ~/.s3cfg
+
+                sed -i "s/admin.key/$key/g" ~/.s3cfg
+                sed -i "s/admin.secret/$secret/g" ~/.s3cfg
+                s3cmd mb s3://test
+                s3cmd ls
+                s3cmd put cs_test_rig s3://test
+                s3cmd del s3://test/cs_test_rig
+                s3cmd rb s3://test
