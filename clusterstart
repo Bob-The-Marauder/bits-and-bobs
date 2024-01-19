@@ -3,5 +3,4 @@ for i in 11 12 13 14 15
   do
       echo "Sending Riak start to 192.168.0.$i"
       ssh root@192.168.0.$i "ulimit -n 65536 && riak start"
-    fi
   done
